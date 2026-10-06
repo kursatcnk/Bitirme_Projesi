@@ -34,6 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -85,7 +86,8 @@
     <Compile Include="Randevular.Designer.cs">
       <DependentUpon>Randevular.cs</DependentUpon>
     </Compile>
-    <Compile Include="SMS.cs" />
+    <Compile Include="Bildirim.cs" />
+    <Compile Include="Sifreleme.cs" />
     <Compile Include="Uyeler.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -79,38 +79,18 @@ namespace BitirmeProjesi
 
             string ucret2 = lblUcret2.Text;
 
-            SqlConnection baglanti = new SqlConnection();  
-            baglanti.ConnectionString = Globals.DB; // GLOBAL SQL BAĞLANTI CÜMLECİĞİ
-            SqlCommand cmd = new SqlCommand();
-            cmd.Connection = baglanti;
-
-
-            cmd.CommandText = "INSERT into YeniUye (UyeAdi,UyeSoyAdi,Cinsiyet,DogumTarihi,TelNo,Email,KayitTarihi,IdmanSaati,Adres,UyelikTipi,UyelikKulup,UyelikUcreti,Kimlik,UyelikDurumu) VALUES('" + Ad + "','" + Soyad + "','" + Cinsiyet + "','" + dogumtarihi + "','" + telefon + "','" + email + "','" + kayit + "','" + idman + "','" + adres + "','" + uyelik + "','" + kulup + "','" + ucret2 + "','" + Kimlik + "','" + uyelikdurumu + "')"; 
-             SqlDataAdapter DA = new SqlDataAdapter(cmd);
-            DataSet DS = new DataSet();
-            DA.Fill(DS);
-
-            //SMS GÖNDERME İŞLEMİ BURADA YAPILIYOR
-            var Msj = "https://api.iletimerkezi.com/v1/send-sms/get/?username=5324803965&password=Ak..25mu&text=Sayın " + Ad + " " + Soyad + " " + kulup + " kulübümüze " + uyelik + " üyeliğiniz başlamıştır. Sağlıklı günler dileriz.&receipents=" + telefon + "&sender=HCANKAROGLU";
-            SMS.SendSMS(Msj); //SMS GÖNDERİYOR
-
+            Globals.Calistir(
+                "INSERT INTO YeniUye (UyeAdi, UyeSoyAdi, Cinsiyet, DogumTarihi, TelNo, Email, KayitTarihi, IdmanSaati, Adres, UyelikTipi, UyelikKulup, UyelikUcreti, Kimlik, UyelikDurumu) " +
+                "VALUES (@ad, @soyad, @cinsiyet, @dogum, @tel, @email, @kayit, @idman, @adres, @tip, @kulup, @ucret, @kimlik, @durum)",
+                ("@ad", Ad), ("@soyad", Soyad), ("@cinsiyet", Cinsiyet), ("@dogum", dogumtarihi), ("@tel", telefon), ("@email", email), ("@kayit", kayit),
+                ("@idman", idman), ("@adres", adres), ("@tip", uyelik), ("@kulup", kulup), ("@ucret", ucret2), ("@kimlik", Kimlik), ("@durum", uyelikdurumu));
 
             MessageBox.Show("Yeni Üye Eklendi!");
-            //Diğer uygulamalara izin vermek için giriş yapıp burdan aktif hale getirmemiz gerekiyor  https://myaccount.google.com/u/2/lesssecureapps?pli=1&rapt=AEjHL4MqDpYaFIzj-4JLifyh6VTYmBh3LFas2uBjJsftFQ_Vt0iiyS05pMur8wfYQ3EypcX_H1SMT8V5PQTZeqkQ9w5QrvvM1w  
-            SmtpClient client = new SmtpClient("smtp.gmail.com", 587); //MAIL GONDEREN SUNUCUNUN PROTOKOLÜNE BAĞLANIYOR
-            MailMessage message = new MailMessage(); // EMAIL NESNESİ
-            message.From = new MailAddress("kursatcancnk@gmail.com"); // GÖNDERİCİ MAİL
-            //message.From = new MailAddress("190903053@st.maltepe.edu.tr"); // GÖNDERİCİ MAİL
-            message.To.Add(email);// ALICI MAİL
-            message.IsBodyHtml = true;// MESAJIN HTML OLARAK GİTMESİNİ SAĞLIYORUZ
-           //GÖNDERDİĞİMİZ MESAJ
-            message.Body = "<h3> Sayın "+Ad + " " + Soyad + " " + kulup + " kulübümüze " + uyelik + " üyeliğiniz başlamıştır. Sağlıklı günler dileriz!</h3><img src='https://recepabi.xyz/logo.png'>"; // Body of the email
-            message.Subject = "CNKFITNESS Üyeliğiniz Başlamıştır!"; // EMAIL KONUSU
-            client.UseDefaultCredentials = false;// GÖNDERİCİ ADRESİ KENDİMİZ OLDUĞUMUZ İÇİN BUNU KAPATIYORUZ
-            client.Credentials = new System.Net.NetworkCredential("", ""); // GÖNDERİCİ MAİL ADRESİ VE ŞİFRESİ BURAYA GİRİLMELİ
-            client.EnableSsl = true; // SSL BAĞLANTISINI AÇIYORUZ  
-            client.Send(message); //MAİL GÖNDERİYORUZ
-            message = null; // MESAJ NESNESİNİ BOŞALTIYORUZ Kİ TEKRARDAN GÖNDEREBİLELİM.
+
+            // Hoş geldin mesajları. Ayarlar App.config'te; boşsa gönderilmiyor, gönderilemezse kayıt yine geçerli.
+            var metin = $"Sayın {Ad} {Soyad}, {kulup} kulübümüze {uyelik} üyeliğiniz başlamıştır. Sağlıklı günler dileriz.";
+            var hatalar = new[] { Bildirim.SmsGonder(telefon, metin), Bildirim.EpostaGonder(email, "Üyeliğiniz başladı", metin) }.Where(h => h != null).ToList();
+            if (hatalar.Count > 0) MessageBox.Show("Üye kaydedildi ancak hoş geldin mesajı gönderilemedi: " + string.Join(" ", hatalar), "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void button1_Click(object sender, EventArgs e)

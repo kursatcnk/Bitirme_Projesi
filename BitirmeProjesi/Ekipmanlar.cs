@@ -36,18 +36,9 @@ namespace BitirmeProjesi
 
             string teslimat = comboKlup.Text;
 
-            SqlConnection baglanti = new SqlConnection();
-
-
-            baglanti.ConnectionString = Globals.DB;
-            SqlCommand cmd = new SqlCommand();
-            cmd.Connection = baglanti;
-
-
-            cmd.CommandText = "INSERT into Ekipmanlar (EkipmanAd,EkipmanAciklama,KullanilanKas,GarantiTarihi,Ucret,KullanildigiKlup) VALUES('" + ekipmanad+ "','" + aciklama + "','" + kasgrubu + "','" + garanti + "','" + ucret + "','" + teslimat + "')";
-            SqlDataAdapter DA = new SqlDataAdapter(cmd);
-            DataSet DS = new DataSet();
-            DA.Fill(DS);
+            Globals.Calistir(
+                "INSERT INTO Ekipmanlar (EkipmanAd, EkipmanAciklama, KullanilanKas, GarantiTarihi, Ucret, KullanildigiKlup) VALUES (@ad, @aciklama, @kas, @garanti, @ucret, @klup)",
+                ("@ad", ekipmanad), ("@aciklama", aciklama), ("@kas", kasgrubu), ("@garanti", garanti), ("@ucret", ucret), ("@klup", teslimat));
             MessageBox.Show("Yeni Ekipman Eklendi!");
             txtekipmanAdi.Clear();
             txtAciklama.Clear();

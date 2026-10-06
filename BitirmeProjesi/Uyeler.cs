@@ -23,7 +23,7 @@ namespace BitirmeProjesi
             
         }
 
-        SqlConnection connect = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI");
+        SqlConnection connect = new SqlConnection(Globals.DB);
 
          public void Guncelle() // guncelleUye PROCEDURE'UNA GEREKLİ VERİLERİ GÖNDEREREK ÇALIŞTIRIYOR.
         {
@@ -167,9 +167,9 @@ namespace BitirmeProjesi
 
         private void button1_Click(object sender, EventArgs e)
         {
-            string sql = "SELECT * FROM YeniUye WHERE UyeAdi Like '%" + textBox12.Text + "%'";
-
-            SqlDataAdapter dataadapter = new SqlDataAdapter(sql, connect);
+            // Aranan metin parametre olarak gidiyor.
+            var dataadapter = new SqlDataAdapter(new SqlCommand("SELECT * FROM YeniUye WHERE UyeAdi LIKE '%' + @ara + '%'", connect));
+            dataadapter.SelectCommand.Parameters.AddWithValue("@ara", textBox12.Text);
             DataSet ds = new DataSet();
             connect.Open();
             dataadapter.Fill(ds, "YeniUye");

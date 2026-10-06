@@ -23,7 +23,7 @@ namespace BitirmeProjesi
             timer1.Start(); //FORM AÇILDIĞINDA TIMER'I BAŞLATARAK DATAGRIDWIEVA VERİLERİ AKTARIYOR
         }
 
-        SqlConnection connect = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI");
+        SqlConnection connect = new SqlConnection(Globals.DB);
 
         public void Guncelle() 
         {
@@ -143,9 +143,9 @@ namespace BitirmeProjesi
 
         private void button1_Click(object sender, EventArgs e)
         {
-            string sql = "SELECT * FROM Ekipmanlar WHERE EkipmanAd Like '%"+ textBox7.Text + "%'";
-
-            SqlDataAdapter dataadapter = new SqlDataAdapter(sql, connect);
+            // Aranan metin parametre olarak gidiyor.
+            var dataadapter = new SqlDataAdapter(new SqlCommand("SELECT * FROM Ekipmanlar WHERE EkipmanAd LIKE '%' + @ara + '%'", connect));
+            dataadapter.SelectCommand.Parameters.AddWithValue("@ara", textBox7.Text);
             DataSet ds = new DataSet();
             connect.Open();
             dataadapter.Fill(ds, "Ekipman");

@@ -59,18 +59,11 @@ namespace BitirmeProjesi
             string maas = txtmaas.Text;
             string ozgecmis = richTxtOzgecmis.Text;
 
-            SqlConnection baglanti = new SqlConnection();
-         
-
-            baglanti.ConnectionString = Globals.DB; 
-            SqlCommand cmd = new SqlCommand();
-            cmd.Connection = baglanti;
-
-
-            cmd.CommandText = "INSERT into Egitmenler (EgitmenAdi,EgitmenSoyAdi,Cinsiyet,DogumTarihi,TelNo,Email,KatilmaTarihi,UzmanlikAlani,HizmetVerdigiYer,Maas,Ozgecmis,Kimlik) VALUES('" + ad + "','" + soyad + "','" + cinsiyet + "','" + dogumtarihi + "','" + telefon + "','" + email + "','" + katilma + "','" + uzmanlik + "','" + hizmet + "','" + maas + "','" + ozgecmis + "','" + kimlik + "')";
-            SqlDataAdapter DA = new SqlDataAdapter(cmd);
-            DataSet DS = new DataSet();
-            DA.Fill(DS);
+            Globals.Calistir(
+                "INSERT INTO Egitmenler (EgitmenAdi, EgitmenSoyAdi, Cinsiyet, DogumTarihi, TelNo, Email, KatilmaTarihi, UzmanlikAlani, HizmetVerdigiYer, Maas, Ozgecmis, Kimlik) " +
+                "VALUES (@ad, @soyad, @cinsiyet, @dogum, @tel, @email, @katilma, @uzmanlik, @hizmet, @maas, @ozgecmis, @kimlik)",
+                ("@ad", ad), ("@soyad", soyad), ("@cinsiyet", cinsiyet), ("@dogum", dogumtarihi), ("@tel", telefon), ("@email", email),
+                ("@katilma", katilma), ("@uzmanlik", uzmanlik), ("@hizmet", hizmet), ("@maas", maas), ("@ozgecmis", ozgecmis), ("@kimlik", kimlik));
             MessageBox.Show("Yeni Eğitmen Eklendi!");
             txtAd.Clear();
             txtSoyAd.Clear();

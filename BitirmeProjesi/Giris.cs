@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SqlClient;
-using System.Security.Cryptography;//şifrelemek için kullandığımız kütüphane
+
 namespace BitirmeProjesi
 {
     public partial class Giris : Form
@@ -22,46 +22,64 @@ namespace BitirmeProjesi
             Application.Exit();
         }
 
-        SqlConnection connect = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI");
         private void btnGiris_Click(object sender, EventArgs e)
         {
             if (txtKullaniciAdi.Text == "" || txtSifre.Text == "" || txtKullaniciAdi.Text == "Kullanıcı Adı" || txtSifre.Text == "Şifre")
             {
                 MessageBox.Show("Kullanıcı adı ve/veya şifre boş geçilemez, lütfen veri girişi yapınız.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            else
-            {
 
-                try
+            try
+            {
+                if (GirisDogru(txtKullaniciAdi.Text, txtSifre.Text))
                 {
-                    try
-                    {
-                        connect.Close();
-                    }
-                    catch { }
-                    bool girisOnay = false;
-                    connect.Open();
-                  
-                    
-                    string sql = "SELECT kullanici_adi,sifre from Kullanici_Giris WHERE kullanici_adi='" + txtKullaniciAdi.Text + "' AND sifre='" + MD5Sifrele(txtSifre.Text) + "'"; //MD5Sifrele
-                    SqlCommand command = new SqlCommand(sql, connect);
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            Anasayfa fr = new Anasayfa();
-                            fr.Show();
-                            this.Hide();
-                            girisOnay = true;
-                        }
-                    }
-                    if (!girisOnay) MessageBox.Show("Kullanıcı adı ve/veya şifrede hatalı giriş yaptınız, lütfen doğru veri girişi yapınız.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    
+                    new Anasayfa().Show();
+                    Hide();
                 }
-                catch
+                else
                 {
                     MessageBox.Show("Kullanıcı adı ve/veya şifrede hatalı giriş yaptınız, lütfen doğru veri girişi yapınız.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
+            }
+            catch (SqlException)
+            {
+                MessageBox.Show("Veritabanına bağlanılamadı. App.config'teki bağlantı dizesini kontrol edin.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Kullanıcı adı parametreyle aranıyor, şifre veritabanında değil burada doğrulanıyor.
+        // Eski MD5 kaydıyla giren kullanıcının şifresi yeni biçime çevriliyor.
+        static bool GirisDogru(string kullaniciAdi, string sifre)
+        {
+            using (var baglanti = new SqlConnection(Globals.DB))
+            {
+                baglanti.Open();
+                int id;
+                string kayitli;
+                using (var komut = new SqlCommand("SELECT k_id, sifre FROM Kullanici_Giris WHERE kullanici_adi = @ad", baglanti))
+                {
+                    komut.Parameters.Add("@ad", SqlDbType.NVarChar, 50).Value = kullaniciAdi;
+                    using (var okuyucu = komut.ExecuteReader())
+                    {
+                        if (!okuyucu.Read()) return false;
+                        id = okuyucu.GetInt32(0);
+                        kayitli = okuyucu.IsDBNull(1) ? null : okuyucu.GetString(1);
+                    }
+                }
+
+                if (!Sifreleme.Dogrula(sifre, kayitli)) return false;
+
+                if (!Sifreleme.YeniBicimde(kayitli))
+                {
+                    using (var guncelle = new SqlCommand("UPDATE Kullanici_Giris SET sifre = @sifre WHERE k_id = @id", baglanti))
+                    {
+                        guncelle.Parameters.Add("@sifre", SqlDbType.NVarChar, 50).Value = Sifreleme.Ozetle(sifre);
+                        guncelle.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                        guncelle.ExecuteNonQuery();
+                    }
+                }
+                return true;
             }
         }
 
@@ -75,32 +93,22 @@ namespace BitirmeProjesi
             if (e.KeyCode == Keys.Enter)
                 btnGiris_Click(null, null);
         }
-        public static string MD5Sifrele(string sifrelenecekMetin)//md5 şifreleme yapan metod
-        {
-            MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();//md5 şifreleme için md5service nesnesi oluşturuyoruz
-            byte[] dizi = Encoding.UTF8.GetBytes(sifrelenecekMetin);//gelen metini utf8 olarak bytelara çeviriyoruz
-            dizi = md5.ComputeHash(dizi);//dizi şeklinde olan byte değişkenimizi şifreliyoruz
-            StringBuilder sb = new StringBuilder();//şifrelenmiş byte metnimizi stringbuilder ile stringe çevirmemizi sağlıcak nesnemiz
-            foreach (byte ba in dizi)//diziyi foreachle döndürüyoruz
-            {
-                sb.Append(ba.ToString("x2").ToLower());//append ile arka arkaya ekliyoruz
-            }
-            return sb.ToString();//stringbuilderi geri değer olarak döndürüyoruz ve şifrelenmiş oluyor
-        }
-
         private void button1_Click(object sender, EventArgs e)
         {
-            if (!(txtKullaniciAdi.Text == "Kullanıcı Adı" || txtSifre.Text == "Şifre"))
+            if (!(txtKullaniciAdi.Text == "Kullanıcı Adı" || txtSifre.Text == "Şifre" || txtKullaniciAdi.Text == "" || txtSifre.Text == ""))
             {
                 try
-                {  //Kullanıcı Kayıt
-                    SqlCommand cmd = new SqlCommand();
-                    cmd.Connection = connect;
-                    cmd.CommandText = "INSERT into Kullanici_Giris (kullanici_adi, sifre) VALUES('" + txtKullaniciAdi.Text + "','" + MD5Sifrele(txtSifre.Text) + "')";
-                    connect.Open();
-                    if (cmd.ExecuteNonQuery() != 0)
-                        MessageBox.Show("Kayıt Başarılı");
-                    connect.Close();
+                {
+                    // Kullanıcı kaydı: aynı ad ikinci kez alınamıyor, şifre özetlenerek saklanıyor.
+                    using (var baglanti = new SqlConnection(Globals.DB))
+                    using (var komut = new SqlCommand(
+                        "IF NOT EXISTS (SELECT 1 FROM Kullanici_Giris WHERE kullanici_adi = @ad) INSERT INTO Kullanici_Giris (kullanici_adi, sifre) VALUES (@ad, @sifre)", baglanti))
+                    {
+                        komut.Parameters.Add("@ad", SqlDbType.NVarChar, 50).Value = txtKullaniciAdi.Text;
+                        komut.Parameters.Add("@sifre", SqlDbType.NVarChar, 50).Value = Sifreleme.Ozetle(txtSifre.Text);
+                        baglanti.Open();
+                        MessageBox.Show(komut.ExecuteNonQuery() > 0 ? "Kayıt başarılı." : "Bu kullanıcı adı zaten kayıtlı.");
+                    }
                 }
                 catch (Exception ex)
                 {

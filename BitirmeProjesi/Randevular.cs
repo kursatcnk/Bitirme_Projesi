@@ -15,7 +15,7 @@ namespace BitirmeProjesi
 {
     public partial class Randevular : Form
     {
-        SqlConnection connect = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI");
+        SqlConnection connect = new SqlConnection(Globals.DB);
         DateTime today, next = DateTime.Today;//bugünü ve bir sonraki randevu gününü(örn bi sonraki pzt gibi) tutacağımız global değişkenler
         string secilenEgitmedId = "";//seçtiğimiz eğitmenin adına göre idsini global olarak tutuyoruz ve randevu alırken eğitmen idsini bu değişken ile gönderiyoruz
         string secilenUyeId = "";
@@ -83,33 +83,11 @@ namespace BitirmeProjesi
                     string uye_id = dataGridView2[1, i].Value.ToString();//gridden satir satir idyi degiskene atadık 
                     string egitmen_id = dataGridView2[2, i].Value.ToString();//gridden satir satir idyi degiskene atadık 
 
-                    sql = "SELECT UyeAdi FROM YeniUye WHERE UyeID=" + uye_id;
-                    using (SqlConnection connection = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI"))
-                    {
-                        SqlCommand command = new SqlCommand(sql, connection);
-                        connection.Open();
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            { 
-                                dataGridView2[1, i].Value = reader[0].ToString();//griddeki satirin değerini değiştiriyoruz.
-                            }
-                        }
-                    }
-                    //ayni işlem
-                    sql = "SELECT EgitmenAdi,EgitmenSoyAdi FROM Egitmenler WHERE EgitmenID=" + egitmen_id;
-                    using (SqlConnection connection = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI"))
-                    {
-                        SqlCommand command = new SqlCommand(sql, connection);
-                        connection.Open();
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                dataGridView2[2, i].Value = reader[0].ToString() +" "+reader[1].ToString();
-                            }
-                        }
-                    }
+                    var uyeAdi = Globals.Deger("SELECT UyeAdi FROM YeniUye WHERE UyeID = @id", ("@id", uye_id));
+                    if (uyeAdi != null) dataGridView2[1, i].Value = uyeAdi.ToString();//griddeki satirin değerini değiştiriyoruz.
+
+                    var egitmenAdi = Globals.Deger("SELECT EgitmenAdi + ' ' + EgitmenSoyAdi FROM Egitmenler WHERE EgitmenID = @id", ("@id", egitmen_id));
+                    if (egitmenAdi != null) dataGridView2[2, i].Value = egitmenAdi.ToString();
 
                 }
             }
@@ -141,19 +119,12 @@ namespace BitirmeProjesi
                     int succes = command.ExecuteNonQuery();
                     if (succes == 1)
                     {
-                        string querry = "SELECT TelNo From YeniUye Where UyeID =" + secilenUyeId;
-                        SqlCommand cmd = new SqlCommand(querry, connect);
-                        var UyeGSM = cmd.ExecuteScalar();
+                        connect.Close();
+                        var uyeGsm = Convert.ToString(Globals.Deger("SELECT TelNo FROM YeniUye WHERE UyeID = @id", ("@id", secilenUyeId)));
+                        var hocaAdi = Convert.ToString(Globals.Deger("SELECT EgitmenAdi + ' ' + EgitmenSoyAdi FROM Egitmenler WHERE EgitmenID = @id", ("@id", secilenEgitmedId)));
+                        var smsHatasi = Bildirim.SmsGonder(uyeGsm, $"{secilenRandevuTipi} randevunuz {randevuTarih} tarihinde {hocaAdi} hoca için alınmıştır.");
 
-                        string querry2 = "SELECT EgitmenAdi, EgitmenSoyAdi FROM Egitmenler Where EgitmenID=" + secilenEgitmedId;
-                        SqlCommand cmd2 = new SqlCommand(querry2, connect);
-                        var HocaAdi = cmd2.ExecuteScalar();
-
-                        var Msj = "https://api.iletimerkezi.com/v1/send-sms/get/?username=5324803965&password=Ak..25mu&text="+ secilenRandevuTipi + " randevunuz "+ randevuTarih + " tarihinde "+ Convert.ToString(HocaAdi) + " Hoca için alinmistir&receipents="+ Convert.ToString(UyeGSM) + "&sender=HCANKAROGLU";
-
-                        SMS.SendSMS(Msj);
-
-                        MessageBox.Show("Randevu Alındı!");
+                        MessageBox.Show(smsHatasi == null ? "Randevu Alındı!" : "Randevu alındı ancak SMS gönderilemedi: " + smsHatasi);
                         randevulariCek();
                         comboPazartesi.ResetText();
                         comboSali.ResetText();
@@ -177,20 +148,10 @@ namespace BitirmeProjesi
 
         private bool randevuKontrol()//randevu kontrolünü sağlayan fonksiyon
         { 
-            string queryString = "SELECT r_id FROM Randevular_Yeni WHERE randevu_tarih='" + randevuTarih + "'";    
-            using (SqlConnection connection = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI"))
-            {
-                SqlCommand command = new SqlCommand(queryString, connection);
-                connection.Open();
-                using (SqlDataReader reader = command.ExecuteReader())
-                { 
-                        while (reader.Read())
-                        {
-                        return false;//okuma yapabiliyorsa var demektir o yüzden false
-                        }  
-                }
-            } 
-            return true;//eğer geri değer olarak false dönmedi ise yok demektir o yüzden true 
+            // Aynı eğitmene aynı saatte ikinci randevu verilmiyor; farklı eğitmenler aynı saatte çalışabiliyor.
+            var mevcut = Globals.Deger("SELECT COUNT(*) FROM Randevular_Yeni WHERE randevu_tarih = @tarih AND egitmen_id = @egitmen",
+                ("@tarih", randevuTarih), ("@egitmen", secilenEgitmedId));
+            return Convert.ToInt32(mevcut) == 0;
         }
 
         int gun = 0;//haftanın hangi gününün seçildiğini belirten değişkenimiz
@@ -600,12 +561,14 @@ namespace BitirmeProjesi
 
         private void button1_Click(object sender, EventArgs e)
         {
-            string query = "Delete from Randevular_Yeni WHERE r_id=" + r_id;
-            MessageBox.Show("Randevunuz Başarıyla Silinmiştir.");
-            connect.Close(); 
-            connect.Open();
-            SqlCommand command = new SqlCommand(query, connect);   
-            command.ExecuteNonQuery(); 
+            if (string.IsNullOrEmpty(r_id) || r_id == "0")
+            {
+                MessageBox.Show("Silmek için listeden bir randevu seçin.");
+                return;
+            }
+            // Mesaj artık silme gerçekten olduktan sonra gösteriliyor.
+            var silinen = Globals.Calistir("DELETE FROM Randevular_Yeni WHERE r_id = @id", ("@id", r_id));
+            MessageBox.Show(silinen > 0 ? "Randevunuz Başarıyla Silinmiştir." : "Randevu bulunamadı.");
             randevulariCek();
             r_id = "0";
         }
@@ -636,10 +599,11 @@ namespace BitirmeProjesi
             comboEgitmen.Items.Clear();
             comboEgitmen.Enabled = true;
             secilenRandevuTipi = comboRandevuTipi.Items[comboRandevuTipi.SelectedIndex].ToString();
-            string queryString = "SELECT * FROM Egitmenler WHERE UzmanlikAlani='"+ secilenRandevuTipi + "'";//Eğitmenleri databaseden çekerek eğitmenidlerini listeye eğitmen adlarını combobox'a aktarıyoruz
-            using (SqlConnection connection = new SqlConnection("Data Source = DESKTOP-SDOQO5O; Initial Catalog = GYM; Integrated Security=SSPI"))
+            //Eğitmenleri databaseden çekerek eğitmenidlerini listeye eğitmen adlarını combobox'a aktarıyoruz
+            using (SqlConnection connection = new SqlConnection(Globals.DB))
             {
-                SqlCommand command = new SqlCommand(queryString, connection);
+                SqlCommand command = new SqlCommand("SELECT * FROM Egitmenler WHERE UzmanlikAlani = @alan", connection);
+                command.Parameters.AddWithValue("@alan", secilenRandevuTipi);
                 connection.Open();
                 using (SqlDataReader reader = command.ExecuteReader())
                 {
